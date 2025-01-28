@@ -1,0 +1,75 @@
+usertype TimeStamp;
+hashfunction H, H1, H2, H3;
+const xor : Function;
+const exp : Function;
+const spl : Function;
+const g;
+secret pw, IDA, IDB, sA, sB, rA, rB, PA, PB, DA, DB;
+
+
+protocol ELianPAKE(UA, UB){
+	role UA{
+		// var MA, NAA : Noncea;
+		var MB, NB, EB : Nonce;
+		fresh sA : Nonce;
+		macro PA= xor(H1(pw),sA);
+		macro FA = xor(H2(sA),IDA);
+		fresh rA : Nonce;
+		macro MA = xor(H2(PA),H2(rA));
+		macro NA = exp(g, rA);
+		macro key1 = H3(pw);
+		macro NAA = {NA}key1;
+		send_1(UA, UB, MA, NAA);
+
+		recv_!2(UB, UA, (MB, NB, EB));
+		macro kA = xor(MB, FA, IDA, H2(rA), H2(H3(exp(NB, rA))));
+		macro EB = {PB, rB}kA;
+		match(NB, exp(g,rB));
+		match(MB, xor(H2(PB), H2(rB)));
+		macro EA = {PA, rA}kA;
+		send_3(UA, UB, (EA));
+
+		macro sidA = spl(MA, NA, MB, NB);
+		macro K = H(kA, sidA);
+		claim(UA, Alive);
+		claim(UA, Nisynch);
+		claim(UA, Niagree);
+		claim(UA, Weakagree);
+		claim(UA, Secret, K);
+		claim(UA, Secret, key1);
+		claim(UA, Secret, kA);
+
+	};
+	role UB{
+		var MB, NB : Nonce;
+		// var MA, NAA, EA : Nonce;
+		fresh sB : Nonce;
+		macro PB = xor(H1(pw), sB);
+		macro FB = xor(H2(sB), IDB);
+		fresh rB : Nonce;
+		macro MB = xor(H2(PB), H2(rB));
+		macro NB = exp(g, rB);
+
+		recv_!1(UA, UB, MA, NAA);
+		macro key2 = H3(pw);
+		macro NAA = {NA}key2;
+		macro kB = xor(MA, FA, IDB, H2(rB), H2(H3(exp(NA, rB))));
+		macro EB = {PB,rB}kB;
+		send_2(UB, UA, (MB, NB, EB));
+
+		recv_!3(UA, UB, (EA));
+		macro EA = {PA, rA}kB;
+		match(NA, exp(g, rA));
+		match(MA, xor(H2(PA), H2(rA)));
+		macro sidB = spl(MA, NA, MB, NB);
+		macro K = H(kB, sidB);
+
+		claim(UB, Alive);
+		claim(UB, Nisynch);
+		claim(UB, Niagree);
+		claim(UB, Weakagree);
+		claim(UB, Secret, K);
+		claim(UB, Secret, key2);
+		claim(UB, Secret, kB);
+	};
+};
